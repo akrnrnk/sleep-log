@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>睡眠記録</title>
+<style>
+  :root{
+    --bg:#0b0f1a;
+    --panel:#141b2e;
+    --panel2:#1b2438;
+    --line:#2a3650;
+    --accent:#7fb8ff;
+    --accent2:#ffb86b;
+    --text:#e8ecf4;
+    --sub:#8b97b5;
+    --good:#7fdca0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI",sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding:16px;
+    padding-bottom:80px;
+  }
+  h1{
+    font-size:18px;
+    font-weight:700;
+    letter-spacing:.05em;
+    margin:0 0 16px;
+    color:var(--text);
+  }
+  h1 .moon{color:var(--accent2);}
+
+  .tabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:16px;
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:10px;
+    border-radius:10px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--sub);
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .tab.active{
+    background:var(--accent);
+    color:#0b0f1a;
+    border-color:var(--accent);
+  }
+
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:16px;
+    margin-bottom:14px;
+  }
+  .card h2{
+    font-size:13px;
+    color:var(--sub);
+    margin:0 0 12px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+  }
+
+  label{
+    display:block;
+    font-size:13px;
+    color:var(--sub);
+    margin-bottom:6px;
+    margin-top:14px;
+  }
+  label:first-of-type{margin-top:0;}
+
+  input[type="date"],
+  input[type="time"],
+  input[type="text"]{
+    width:100%;
+    background:var(--panel2);
+    border:1px solid var(--line);
+    border-radius:8px;
+    color:var(--text);
+    padding:10px 12px;
+    font-size:16px;
+  }
+  input:focus{outline:2px solid var(--accent);outline-offset:1px;}
+
+  .toggle-row{
+    display:flex;
+    gap:8px;
+  }
+  .toggle-btn{
+    flex:1;
+    padding:10px;
+    text-align:center;
+    border-radius:8px;
+    background:var(--panel2);
+    border:1px solid var(--line);
+    color:var(--sub);
+    font-size:14px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .toggle-btn.active{
+    background:var(--accent2);
+    color:#0b0f1a;
+    border-color:var(--accent2);
+    font-weight:700;
+  }
+
+  .wake-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .wake-item{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .wake-item input{flex:1;}
+  .wake-remove{
+    background:var(--panel2);
+    border:1px solid var(--line);
+    color:var(--sub);
+    border-radius:8px;
+    width:38px;
+    height:38px;
+    font-size:18px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .add-wake{
+    margin-top:8px;
+    background:none;
+    border:1px dashed var(--line);
+    color:var(--accent);
+    border-radius:8px;
+    padding:10px;
+    width:100%;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .wake-count{
+    font-size:13px;
+    color:var(--sub);
+    margin-top:8px;
+  }
+  .wake-count b{color:var(--text);font-size:15px;}
+
+  .save-btn{
+    width:100%;
+    padding:14px;
+    margin-top:18px;
+    border:none;
+    border-radius:10px;
+    background:var(--accent);
+    color:#0b0f1a;
+    font-size:16px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .save-btn:active{opacity:.85;}
+
+  .toast{
+    position:fixed;
+    bottom:90px;
+    left:50%;
+    transform:translateX(-50%) translateY(20px);
+    background:var(--good);
+    color:#0b0f1a;
+    padding:10px 20px;
+    border-radius:30px;
+    font-size:14px;
+    font-weight:700;
+    opacity:0;
+    transition:.25s;
+    pointer-events:none;
+    white-space:nowrap;
+  }
+  .toast.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+  }
+
+  /* history */
+  .entry{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:14px;
+    margin-bottom:10px;
+  }
+  .entry-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:8px;
+  }
+  .entry-date{
+    font-weight:700;
+    font-size:15px;
+  }
+  .entry-date .dow{color:var(--sub);font-weight:400;font-size:13px;}
+  .entry-del, .entry-edit{
+    background:none;
+    border:none;
+    color:var(--sub);
+    font-size:13px;
+    cursor:pointer;
+    padding:0 0 0 12px;
+  }
+  .entry-edit{color:var(--accent);}
+  .entry-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:6px 16px;
+    font-size:13px;
+    color:var(--sub);
+  }
+  .entry-grid b{color:var(--text);font-weight:600;}
+  .entry-grid .full{grid-column:1 / -1;}
+  .entry-naps, .entry-wakes{font-size:13px;color:var(--sub);margin-top:6px;}
+  .entry-wakes b, .entry-naps b{color:var(--text);}
+
+  .empty{
+    text-align:center;
+    color:var(--sub);
+    padding:30px 0;
+    font-size:14px;
+  }
+
+  /* weekly */
+  .week-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:16px;
+    margin-bottom:12px;
+  }
+  .week-range{
+    font-size:14px;
+    font-weight:700;
+    margin-bottom:2px;
+  }
+  .week-sub{
+    font-size:12px;
+    color:var(--sub);
+    margin-bottom:12px;
+  }
+  .week-stats{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:10px;
+  }
+  .stat{
+    background:var(--panel2);
+    border-radius:10px;
+    padding:10px;
+    text-align:center;
+  }
+  .stat .label{
+    font-size:11px;
+    color:var(--sub);
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    margin-bottom:4px;
+  }
+  .stat .value{
+    font-size:18px;
+    font-weight:700;
+    color:var(--accent);
+  }
+  .week-extra{
+    display:flex;
+    justify-content:space-between;
+    margin-top:10px;
+    font-size:12px;
+    color:var(--sub);
+    border-top:1px solid var(--line);
+    padding-top:10px;
+  }
+  .week-extra b{color:var(--text);font-size:14px;}
+</style>
+</head>
+<body>
+
+<h1><span class="moon">🌙</span> 睡眠記録</h1>
+
+<div class="tabs">
+  <div class="tab active" data-tab="input">入力</div>
+  <div class="tab" data-tab="history">記録</div>
+  <div class="tab" data-tab="weekly">週次</div>
+</div>
+
+<!-- 入力 -->
+<div class="view active" id="view-input">
+  <div class="card">
+    <h2>基本情報</h2>
+
+    <label for="f-date">日付</label>
+    <input type="date" id="f-date">
+
+    <label for="f-bed">入眠時刻</label>
+    <input type="time" id="f-bed">
+
+    <label for="f-wake">起床時刻</label>
+    <input type="time" id="f-wake">
+
+    <label>昼寝</label>
+    <div class="toggle-row">
+      <div class="toggle-btn active" id="nap-none">なし</div>
+      <div class="toggle-btn" id="nap-yes">あり</div>
+    </div>
+    <div id="nap-times" style="display:none;">
+      <label for="f-nap-start">昼寝 開始</label>
+      <input type="time" id="f-nap-start">
+      <label for="f-nap-end">昼寝 終了</label>
+      <input type="time" id="f-nap-end">
+    </div>
+
+    <label>服薬</label>
+    <div class="toggle-row">
+      <div class="toggle-btn active" id="med-none">なし</div>
+      <div class="toggle-btn" id="med-yes">あり</div>
+    </div>
+    <div id="med-time" style="display:none;">
+      <label for="f-med">服薬時刻</label>
+      <input type="time" id="f-med">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>中途覚醒(前日夜分)</h2>
+    <div class="wake-list" id="wake-list"></div>
+    <button class="add-wake" id="add-wake">＋ 中途覚醒を追加</button>
+    <div class="wake-count">回数: <b id="wake-count">0</b> 回</div>
+  </div>
+
+  <div class="card">
+    <h2>メモ</h2>
+    <input type="text" id="f-note" placeholder="その他メモ(任意)">
+  </div>
+
+  <button class="save-btn" id="save-btn">この日を保存</button>
+</div>
+
+<!-- 記録一覧 -->
+<div class="view" id="view-history">
+  <div id="history-list"></div>
+</div>
+
+<!-- 週次 -->
+<div class="view" id="view-weekly">
+  <div id="weekly-list"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'entries';
+let entries = {}; // date -> entry object
+
+const $ = id => document.getElementById(id);
+
+// ---------- init ----------
+async function init(){
+  await loadEntries();
+  setupTabs();
+  setupNapToggle();
+  setupWakeList();
+  setupSave();
+  $('f-date').value = todayStr();
+  loadFormFor(todayStr());
+  renderHistory();
+  renderWeekly();
+}
+
+function todayStr(){
+  const d = new Date();
+  const tz = d.getTimezoneOffset()*60000;
+  return new Date(d - tz).toISOString().slice(0,10);
+}
+
+const DEFAULT_ENTRIES = {
+  '2026-06-04': {bed:'22:20', wake:'9:00', med:'21:15', note:'', nap:null, wakeCount:0, wakeTimes:[]},
+  '2026-06-05': {bed:'22:30', wake:'8:00', med:'21:15', note:'', nap:{start:'16:20', end:'17:00'}, wakeCount:2, wakeTimes:['1:00','6:00']},
+  '2026-06-06': {bed:'23:00', wake:'8:30', med:'21:45', note:'', nap:null, wakeCount:1, wakeTimes:['6:00']},
+  '2026-06-07': {bed:'22:30', wake:'7:00', med:'21:45', note:'', nap:null, wakeCount:2, wakeTimes:['1:00','5:00']},
+  '2026-06-08': {bed:'23:30', wake:'8:50', med:'21:30', note:'', nap:{start:'15:50', end:'17:10'}, wakeCount:2, wakeTimes:['4:30','6:00']},
+  '2026-06-09': {bed:'23:00', wake:'8:50', med:'21:20', note:'', nap:null, wakeCount:1, wakeTimes:['5:30']},
+  '2026-06-10': {bed:'22:00', wake:'8:50', med:'21:15', note:'', nap:null, wakeCount:1, wakeTimes:['4:30']},
+  '2026-06-11': {bed:'', wake:'8:10', med:'', note:'', nap:null, wakeCount:2, wakeTimes:['1:00','5:00']}
+};
+
+// ---------- storage ----------
+async function loadEntries(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY);
+    if(res && res.value){
+      entries = JSON.parse(res.value);
+    } else {
+      // first time use - start with past data already filled in
+      entries = JSON.parse(JSON.stringify(DEFAULT_ENTRIES));
+    }
+  }catch(e){
+    // storage unavailable or key doesn't exist yet
+    entries = JSON.parse(JSON.stringify(DEFAULT_ENTRIES));
+  }
+}
+
+
+
+async function saveEntries(){
+  try{
+    const json = JSON.stringify(entries);
+    const result = await window.storage.set(STORAGE_KEY, json);
+    if(!result){
+      console.error('Storage set returned null');
+    }
+  }catch(e){
+    console.error('save failed', e);
+    showToast('保存エラー: ' + e.message);
+  }
+}
+
+// ---------- tabs ----------
+function setupTabs(){
+  document.querySelectorAll('.tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      tab.classList.add('active');
+      $('view-'+tab.dataset.tab).classList.add('active');
+      if(tab.dataset.tab==='history') renderHistory();
+      if(tab.dataset.tab==='weekly') renderWeekly();
+    });
+  });
+}
+
+// ---------- nap toggle ----------
+function setupNapToggle(){
+  $('nap-none').addEventListener('click', ()=>{
+    $('nap-none').classList.add('active');
+    $('nap-yes').classList.remove('active');
+    $('nap-times').style.display = 'none';
+    $('f-nap-start').value='';
+    $('f-nap-end').value='';
+  });
+  $('nap-yes').addEventListener('click', ()=>{
+    $('nap-yes').classList.add('active');
+    $('nap-none').classList.remove('active');
+    $('nap-times').style.display = 'block';
+  });
+
+  $('med-none').addEventListener('click', ()=>{
+    $('med-none').classList.add('active');
+    $('med-yes').classList.remove('active');
+    $('med-time').style.display = 'none';
+    $('f-med').value='';
+  });
+  $('med-yes').addEventListener('click', ()=>{
+    $('med-yes').classList.add('active');
+    $('med-none').classList.remove('active');
+    $('med-time').style.display = 'block';
+  });
+}
+
+// ---------- wake list ----------
+function setupWakeList(){
+  $('add-wake').addEventListener('click', ()=> addWakeRow(''));
+  $('f-date').addEventListener('change', e=>{
+    loadFormFor(e.target.value);
+  });
+}
+
+function addWakeRow(value){
+  const row = document.createElement('div');
+  row.className = 'wake-item';
+  row.innerHTML = `
+    <input type="time" value="${value||''}">
+    <button class="wake-remove" type="button">×</button>
+  `;
+  row.querySelector('.wake-remove').addEventListener('click', ()=>{
+    row.remove();
+    updateWakeCount();
+  });
+  row.querySelector('input').addEventListener('change', updateWakeCount);
+  $('wake-list').appendChild(row);
+  updateWakeCount();
+}
+
+function updateWakeCount(){
+  const count = $('wake-list').children.length;
+  $('wake-count').textContent = count;
+}
+
+function getWakeTimes(){
+  return Array.from($('wake-list').querySelectorAll('input'))
+    .map(i=>i.value)
+    .filter(v=>v);
+}
+
+function getWakeCount(){
+  return $('wake-list').children.length;
+}
+
+// ---------- form load/reset ----------
+function loadFormFor(dateStr){
+  const e = entries[dateStr];
+  $('wake-list').innerHTML = '';
+
+  if(e){
+    $('f-bed').value = e.bed || '';
+    $('f-wake').value = e.wake || '';
+    $('f-note').value = e.note || '';
+
+    if(e.med){
+      $('med-yes').classList.add('active');
+      $('med-none').classList.remove('active');
+      $('med-time').style.display = 'block';
+      $('f-med').value = e.med;
+    } else {
+      $('med-none').classList.add('active');
+      $('med-yes').classList.remove('active');
+      $('med-time').style.display = 'none';
+      $('f-med').value = '';
+    }
+
+    if(e.nap && (e.nap.start || e.nap.end)){
+      $('nap-yes').classList.add('active');
+      $('nap-none').classList.remove('active');
+      $('nap-times').style.display = 'block';
+      $('f-nap-start').value = e.nap.start || '';
+      $('f-nap-end').value = e.nap.end || '';
+    } else {
+      $('nap-none').classList.add('active');
+      $('nap-yes').classList.remove('active');
+      $('nap-times').style.display = 'none';
+      $('f-nap-start').value='';
+      $('f-nap-end').value='';
+    }
+
+    const wakes = e.wakeTimes && e.wakeTimes.length ? e.wakeTimes : (e.wakeCount ? new Array(e.wakeCount).fill('') : []);
+    wakes.forEach(w=>addWakeRow(w));
+  } else {
+    $('f-bed').value='';
+    $('f-wake').value='';
+    $('f-note').value='';
+    $('med-none').classList.add('active');
+    $('med-yes').classList.remove('active');
+    $('med-time').style.display='none';
+    $('f-med').value='';
+    $('nap-none').classList.add('active');
+    $('nap-yes').classList.remove('active');
+    $('nap-times').style.display='none';
+    $('f-nap-start').value='';
+    $('f-nap-end').value='';
+  }
+  updateWakeCount();
+}
+
+// ---------- save ----------
+function setupSave(){
+  $('save-btn').addEventListener('click', async ()=>{
+    const date = $('f-date').value;
+    if(!date){
+      showToast('日付を選んでください');
+      return;
+    }
+    const wakeTimes = getWakeTimes();
+    const wakeCount = getWakeCount();
+
+    const napOn = $('nap-yes').classList.contains('active');
+    const medOn = $('med-yes').classList.contains('active');
+
+    if(medOn && !$('f-med').value){
+      showToast('服薬時刻を入力してください');
+      return;
+    }
+
+    const isUpdate = !!entries[date];
+    entries[date] = {
+      bed: $('f-bed').value,
+      wake: $('f-wake').value,
+      med: medOn ? $('f-med').value : '',
+      note: $('f-note').value,
+      nap: napOn ? {
+        start: $('f-nap-start').value,
+        end: $('f-nap-end').value
+      } : null,
+      wakeCount: wakeCount,
+      wakeTimes: wakeTimes
+    };
+
+    await saveEntries();
+    showToast(isUpdate ? '更新しました' : '保存しました');
+    renderHistory();
+    renderWeekly();
+  });
+}
+
+function showToast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1500);
+}
+
+// ---------- helpers ----------
+function dowLabel(dateStr){
+  const days = ['日','月','火','水','木','金','土'];
+  const d = new Date(dateStr + 'T00:00:00');
+  return days[d.getDay()];
+}
+
+function fmtDate(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+// duration in minutes from bed time to wake time (handles overnight)
+function sleepDurationMin(bed, wake){
+  if(!bed || !wake) return null;
+  const [bh,bm] = bed.split(':').map(Number);
+  const [wh,wm] = wake.split(':').map(Number);
+  let bedMin = bh*60+bm;
+  let wakeMin = wh*60+wm;
+  let diff = wakeMin - bedMin;
+  if(diff <= 0) diff += 24*60; // overnight
+  return diff;
+}
+
+function napDurationMin(nap){
+  if(!nap || !nap.start || !nap.end) return 0;
+  const [sh,sm] = nap.start.split(':').map(Number);
+  const [eh,em] = nap.end.split(':').map(Number);
+  let diff = (eh*60+em) - (sh*60+sm);
+  if(diff < 0) diff += 24*60;
+  return diff;
+}
+
+function minToHM(min){
+  if(min === null || isNaN(min)) return '–';
+  const h = Math.floor(min/60);
+  const m = Math.round(min%60);
+  return `${h}時間${m}分`;
+}
+
+// average of time-of-day values (HH:MM strings), handling wraparound around midnight
+// using circular mean on minutes-of-day mapped to angle
+function avgTimeOfDay(times){
+  const valid = times.filter(t=>t);
+  if(valid.length===0) return null;
+  let sumSin=0, sumCos=0;
+  valid.forEach(t=>{
+    const [h,m] = t.split(':').map(Number);
+    const minutes = h*60+m;
+    const angle = (minutes/1440) * 2*Math.PI;
+    sumSin += Math.sin(angle);
+    sumCos += Math.cos(angle);
+  });
+  let angle = Math.atan2(sumSin/valid.length, sumCos/valid.length);
+  if(angle < 0) angle += 2*Math.PI;
+  let minutes = (angle/(2*Math.PI)) * 1440;
+  minutes = Math.round(minutes);
+  const h = Math.floor(minutes/60)%24;
+  const m = minutes%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+// ---------- history ----------
+function renderHistory(){
+  const list = $('history-list');
+  const dates = Object.keys(entries).sort().reverse();
+  if(dates.length===0){
+    list.innerHTML = '<div class="empty">まだ記録がありません</div>';
+    return;
+  }
+  list.innerHTML = dates.map(date=>{
+    const e = entries[date];
+    const dur = sleepDurationMin(e.bed, e.wake);
+    let wakesHtml = '';
+    if(e.wakeCount > 0){
+      const times = (e.wakeTimes||[]).filter(t=>t);
+      wakesHtml = `<div class="entry-wakes">中途覚醒: <b>${e.wakeCount}回</b>${times.length? '（'+times.join('、')+'）':''}</div>`;
+    }
+    let napHtml = '';
+    if(e.nap && (e.nap.start || e.nap.end)){
+      const nd = napDurationMin(e.nap);
+      napHtml = `<div class="entry-naps">昼寝: <b>${e.nap.start||'?'} - ${e.nap.end||'?'}</b>${nd? ' ('+minToHM(nd)+')':''}</div>`;
+    }
+    return `
+      <div class="entry">
+        <div class="entry-head">
+          <div class="entry-date">${fmtDate(date)} <span class="dow">(${dowLabel(date)})</span></div>
+          <div>
+            <button class="entry-edit" data-date="${date}">編集</button>
+            <button class="entry-del" data-date="${date}">削除</button>
+          </div>
+        </div>
+        <div class="entry-grid">
+          <div>入眠 <b>${e.bed||'–'}</b></div>
+          <div>起床 <b>${e.wake||'–'}</b></div>
+          <div class="full">睡眠時間 <b>${minToHM(dur)}</b></div>
+          ${e.med ? `<div class="full">服薬 <b>${e.med}</b></div>`:''}
+        </div>
+        ${wakesHtml}
+        ${napHtml}
+        ${e.note ? `<div class="entry-naps">メモ: ${e.note}</div>`:''}
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('.entry-edit').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const date = btn.dataset.date;
+      $('f-date').value = date;
+      loadFormFor(date);
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      document.querySelector('.tab[data-tab="input"]').classList.add('active');
+      $('view-input').classList.add('active');
+    });
+  });
+
+  list.querySelectorAll('.entry-del').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const date = btn.dataset.date;
+      if(confirm(`${fmtDate(date)}の記録を削除しますか?`)){
+        delete entries[date];
+        await saveEntries();
+        renderHistory();
+        renderWeekly();
+        if($('f-date').value===date) loadFormFor(date);
+      }
+    });
+  });
+}
+
+// ---------- weekly ----------
+// Weeks start Friday. For a given date, find the Friday of that week.
+function weekStart(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay(); // 0=Sun..6=Sat
+  // days since most recent Friday (5)
+  const diff = (day - 5 + 7) % 7;
+  d.setDate(d.getDate() - diff);
+  return d;
+}
+
+function toDateStr(d){
+  const tz = d.getTimezoneOffset()*60000;
+  return new Date(d - tz).toISOString().slice(0,10);
+}
+
+function renderWeekly(){
+  const list = $('weekly-list');
+  const dates = Object.keys(entries);
+  if(dates.length===0){
+    list.innerHTML = '<div class="empty">まだ記録がありません</div>';
+    return;
+  }
+
+  // group by week start (friday)
+  const groups = {};
+  dates.forEach(date=>{
+    const ws = toDateStr(weekStart(date));
+    if(!groups[ws]) groups[ws]=[];
+    groups[ws].push(date);
+  });
+
+  const weekStarts = Object.keys(groups).sort().reverse();
+
+  list.innerHTML = weekStarts.map(ws=>{
+    const dayList = groups[ws].sort();
+    const wakeTimesArr = [];
+    const bedTimesArr = [];
+    const durations = [];
+    let totalWakeCount = 0;
+    let napCount = 0;
+    let totalNapMin = 0;
+
+    dayList.forEach(date=>{
+      const e = entries[date];
+      if(e.wake) wakeTimesArr.push(e.wake);
+      if(e.bed) bedTimesArr.push(e.bed);
+      const dur = sleepDurationMin(e.bed, e.wake);
+      if(dur!==null) durations.push(dur);
+      totalWakeCount += e.wakeCount||0;
+      if(e.nap && (e.nap.start || e.nap.end)){
+        napCount++;
+        totalNapMin += napDurationMin(e.nap);
+      }
+    });
+
+    const avgWake = avgTimeOfDay(wakeTimesArr);
+    const avgBed = avgTimeOfDay(bedTimesArr);
+    const avgDurMin = durations.length ? durations.reduce((a,b)=>a+b,0)/durations.length : null;
+
+    const endDate = new Date(ws + 'T00:00:00');
+    endDate.setDate(endDate.getDate()+6);
+    const endStr = toDateStr(endDate);
+
+    return `
+      <div class="week-card">
+        <div class="week-range">${fmtDate(ws)} 〜 ${fmtDate(endStr)}</div>
+        <div class="week-sub">${dayList.length}日分の記録</div>
+        <div class="week-stats">
+          <div class="stat">
+            <div class="label">平均入眠</div>
+            <div class="value">${avgBed||'–'}</div>
+          </div>
+          <div class="stat">
+            <div class="label">平均起床</div>
+            <div class="value">${avgWake||'–'}</div>
+          </div>
+          <div class="stat">
+            <div class="label">平均睡眠</div>
+            <div class="value">${avgDurMin!==null ? minToHM(avgDurMin) : '–'}</div>
+          </div>
+        </div>
+        <div class="week-extra">
+          <div>中途覚醒合計 <b>${totalWakeCount}回</b></div>
+          <div>昼寝 <b>${napCount}日</b>${totalNapMin?' / 合計'+minToHM(totalNapMin):''}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+init();
+</script>
+</body>
+</html>
