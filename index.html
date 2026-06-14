@@ -406,33 +406,54 @@ const DEFAULT_ENTRIES = {
 };
 
 // ---------- storage ----------
+// localStorageをメイン、window.storageはClaude.ai上のときだけ使う
+const useWindowStorage = typeof window.storage !== 'undefined';
+
 async function loadEntries(){
+  // まずlocalStorageを見る
   try{
-    const res = await window.storage.get(STORAGE_KEY);
-    if(res && res.value){
-      entries = JSON.parse(res.value);
-    } else {
-      // first time use - start with past data already filled in
-      entries = JSON.parse(JSON.stringify(DEFAULT_ENTRIES));
+    const local = localStorage.getItem(STORAGE_KEY);
+    if(local){
+      entries = JSON.parse(local);
+      return;
     }
-  }catch(e){
-    // storage unavailable or key doesn't exist yet
-    entries = JSON.parse(JSON.stringify(DEFAULT_ENTRIES));
+  }catch(e){}
+
+  // なければwindow.storageを試す(Claude.ai上)
+  if(useWindowStorage){
+    try{
+      const res = await window.storage.get(STORAGE_KEY);
+      if(res && res.value){
+        entries = JSON.parse(res.value);
+        // localStorageにも保存しておく
+        localStorage.setItem(STORAGE_KEY, res.value);
+        return;
+      }
+    }catch(e){}
   }
+
+  // どちらにもなければデフォルトデータ
+  entries = JSON.parse(JSON.stringify(DEFAULT_ENTRIES));
 }
 
-
-
 async function saveEntries(){
+  const json = JSON.stringify(entries);
+
+  // localStorageに必ず保存(メイン)
   try{
-    const json = JSON.stringify(entries);
-    const result = await window.storage.set(STORAGE_KEY, json);
-    if(!result){
-      console.error('Storage set returned null');
-    }
+    localStorage.setItem(STORAGE_KEY, json);
   }catch(e){
-    console.error('save failed', e);
-    showToast('保存エラー: ' + e.message);
+    console.error('localStorage save failed', e);
+  }
+
+  // window.storageにも保存を試みる(Claude.ai上ではこちらが永続化される)
+  if(useWindowStorage){
+    try{
+      await window.storage.set(STORAGE_KEY, json);
+    }catch(e){
+      // 失敗してもlocalStorageがあるので問題なし
+      console.warn('window.storage save skipped:', e.message);
+    }
   }
 }
 
